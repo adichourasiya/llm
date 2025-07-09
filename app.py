@@ -1,7 +1,5 @@
 import os
 import streamlit as st
-from PIL import Image
-import io
 from llm_utils import encode_image_to_base64, send_message
 from ui_utils import render_header, render_chat_history
 
@@ -65,43 +63,28 @@ else:
 # Display chat history for current chat (at the top)
 render_chat_history(messages)
 
-# Chat input at the bottom with only attachment icon for image upload
+# Chat input at the bottom
 st.markdown("<div style='height: 30vh'></div>", unsafe_allow_html=True)
 
-# Helper to clear input
-if 'msg_input' not in st.session_state:
-    st.session_state['msg_input'] = ""
-if 'img_input' not in st.session_state:
-    st.session_state['img_input'] = None
-
-def send_and_clear():
-    user_input = st.session_state['msg_input']
-    uploaded_file = st.session_state['img_input']
-    content = []
-    if user_input:
-        content.append({"type": "text", "text": user_input})
-    if uploaded_file:
-        image_bytes = uploaded_file.read()
-        image_base64 = encode_image_to_base64(image_bytes)
-        content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
-        st.session_state['img_input'] = None
-    if content:
-        messages.append({"role": "user", "content": content})
-        try:
-            reply = send_message(messages, deployment_name)
-            messages.append({"role": "assistant", "content": [{"type": "text", "text": reply}]})
-        except Exception as e:
-            st.error(f"Error: {e}")
-    st.session_state['chats'][st.session_state['current_chat']] = messages
-    st.session_state['last_sent'] = user_input
-    st.session_state['msg_input'] = ""
-    st.rerun()
-
 with st.form(key="chat_form", clear_on_submit=True):
-    col1, col2, col3 = st.columns([10,1,1])
-    with col1:
-        st.text_input("Message", key='msg_input', placeholder="Type your message and press Enter...", label_visibility="collapsed")
-    with col2:
-        st.file_uploader("Attach image", type=["png", "jpg", "jpeg", "gif", "webp"], key='img_input', label_visibility="collapsed")
-    with col3:
-        st.form_submit_button("Send", on_click=send_and_clear, use_container_width=True)
+    user_input = st.text_input("Message", key='msg_input', placeholder="Type your message and press Enter...", label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Attach image", type=["png", "jpg", "jpeg", "gif", "webp"], key='img_input', label_visibility="collapsed")
+    submitted = st.form_submit_button("Send", use_container_width=True)
+    if submitted:
+        content = []
+        if user_input:
+            content.append({"type": "text", "text": user_input})
+        if uploaded_file:
+            image_bytes = uploaded_file.read()
+            image_base64 = encode_image_to_base64(image_bytes)
+            content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
+        if content:
+            messages.append({"role": "user", "content": content})
+            try:
+                reply = send_message(messages, deployment_name)
+                messages.append({"role": "assistant", "content": [{"type": "text", "text": reply}]})
+            except Exception as e:
+                st.error(f"Error: {e}")
+        st.session_state['chats'][st.session_state['current_chat']] = messages
+        st.session_state['last_sent'] = user_input
+        st.rerun()
